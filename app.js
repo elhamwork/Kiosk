@@ -6,16 +6,29 @@ const EMERGENCY_KEYWORDS = [
   "high fever in a baby",
 ];
 
-// Required exact text — do not reword.
+// Required exact text — do not reword. Always appended in code, never
+// something the LLM generates or can omit.
 const DISCLAIMER = "This kiosk provides information about over-the-counter products only. It does not provide medical advice or diagnoses. Always read the product label before use and consult a pharmacist or healthcare professional if you have questions or if your symptoms worsen or do not improve.";
 const EMERGENCY_MESSAGE = "Your symptoms may require immediate medical attention. Please seek emergency care or speak with a healthcare professional immediately.";
 
+// Fixed, code-enforced follow-up sequence. The LLM cannot skip, reorder,
+// or talk its way out of any of these — app.js always asks all five,
+// regardless of what the user's messages say.
 const FOLLOW_UPS = [
   { key: "age", question: "Got it, thanks for telling me. How old are you?" },
   { key: "duration", question: "How long has this been going on?" },
   { key: "allergies", question: "Any allergies I should know about?" },
   { key: "pregnancy", question: "Are you pregnant or nursing? (just so I recommend safely) — yes, no, or n/a" },
   { key: "medications", question: "Last one — are you taking any other medications right now?" },
+];
+
+// Deterministic keyword fallback, used if the symptom text can't be
+// classified locally and Groq is unavailable.
+const SYMPTOM_KEYWORDS = [
+  "headache", "fever", "pain", "sore throat", "body ache", "inflammation", "cramps",
+  "allergy", "allergies", "runny nose", "sneezing", "itchy eyes", "hives", "itching",
+  "insomnia", "cough", "congestion", "mucus", "heartburn", "indigestion",
+  "upset stomach", "rash", "insect bite", "diarrhea", "nausea",
 ];
 
 const chatEl = document.getElementById("chat");
@@ -34,38 +47,53 @@ form.addEventListener("submit", (e) => {
   if (!text) return;
   addMessage("user", text);
   input.value = "";
-  setTimeout(() => handleInput(text), 300);
+  handleInput(text);
 });
 
-function handleInput(text) {
+async function handleInput(text) {
   const lower = text.toLowerCase();
 
-  if (step === "symptoms") {
-    if (isEmergency(lower)) {
+  // Hard safety gate — runs in plain code, before any LLM call, on every
+  // single message regardless of conversation state. Cannot be bypassed
+  // by prompt injection because the LLM is never consulted to decide
+  // whether this branch fires.
+  if (EMERGENCY_KEYWORDS.some((k) => lower.includes(k))) {
+    addMessage("emergency", EMERGENCY_MESSAGE);
+    resetFlow();
+    return;
+  }
+
+  // Secondary, LLM-assisted emergency check. Purely additive: it can only
+  // add a positive on top of the keyword gate above, never remove it and
+  // never suppress it — if this call fails or is inconclusive we simply
+  // continue with the normal flow, so the kiosk never breaks because of it.
+  try {
+    if (await groqIsEmergency(text)) {
       addMessage("emergency", EMERGENCY_MESSAGE);
       resetFlow();
       return;
     }
+  } catch (err) {
+    // ignore — keyword gate above is the real safety net
+  }
+
+  if (step === "symptoms") {
     answers.symptoms = lower;
     step = "followups";
     followUpIndex = 0;
+    await respondWarmly(text);
     askNextFollowUp();
     return;
   }
 
   if (step === "followups") {
-    if (isEmergency(lower)) {
-      addMessage("emergency", EMERGENCY_MESSAGE);
-      resetFlow();
-      return;
-    }
     const current = FOLLOW_UPS[followUpIndex];
     answers[current.key] = lower;
     followUpIndex++;
     if (followUpIndex < FOLLOW_UPS.length) {
       askNextFollowUp();
     } else {
-      recommend();
+      await recommend();
     }
     return;
   }
@@ -74,28 +102,67 @@ function handleInput(text) {
   addMessage("ai", "What's going on today?");
 }
 
+async function respondWarmly(userText) {
+  try {
+    const reply = await groqFriendlyReply(userText);
+    if (reply) addMessage("ai", reply);
+  } catch (err) {
+    // Groq unavailable — silently skip the extra warmth, flow continues.
+  }
+}
+
 function askNextFollowUp() {
   addMessage("ai", FOLLOW_UPS[followUpIndex].question);
 }
 
-function isEmergency(text) {
-  return EMERGENCY_KEYWORDS.some((k) => text.includes(k));
-}
+async function recommend() {
+  addMessage("ai", "One sec, let me see what fits best...");
 
-function recommend() {
-  const match = INVENTORY.find((p) => p.symptoms.some((s) => answers.symptoms.includes(s)));
+  const allowedIds = INVENTORY.map((p) => p.id);
+  let matchedId = null;
 
-  if (!match) {
+  try {
+    const summary = buildSummary();
+    const classified = await groqClassifyProduct(summary, allowedIds);
+    // Strict whitelist check — the raw LLM string is NEVER used directly.
+    // Anything other than an exact, known id (including "none" or garbage
+    // output from a prompt-injection attempt) falls through safely.
+    if (allowedIds.includes(classified)) {
+      matchedId = classified;
+    }
+  } catch (err) {
+    // Groq unavailable — fall back to deterministic local matching below.
+  }
+
+  if (!matchedId) {
+    const local = INVENTORY.find((p) => p.symptoms.some((s) => answers.symptoms.includes(s)));
+    matchedId = local?.id || null;
+  }
+
+  const product = INVENTORY.find((p) => p.id === matchedId);
+
+  if (!product) {
     addMessageWithDisclaimer(
       "ai",
       "Hmm, I don't have anything approved that's a great fit for that. Best to swing by and chat with our pharmacist — they'll take good care of you."
     );
   } else {
-    const card = buildProductCard(match);
+    const card = buildProductCard(product);
     addMessageWithDisclaimer("ai", "Okay, I think this could help you out:", card);
   }
 
   resetFlow();
+}
+
+function buildSummary() {
+  return [
+    `Symptoms: ${answers.symptoms}`,
+    `Age: ${answers.age}`,
+    `Duration: ${answers.duration}`,
+    `Allergies: ${answers.allergies}`,
+    `Pregnant/nursing: ${answers.pregnancy}`,
+    `Other medications: ${answers.medications}`,
+  ].join("\n");
 }
 
 function buildProductCard(p) {

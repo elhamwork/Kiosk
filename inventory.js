@@ -5,6 +5,7 @@
 // when one is available.
 const INVENTORY = [
   {
+    id: "tylenol",
     name: "Tylenol Extra Strength (Acetaminophen 500mg)",
     icon: "💊",
     symptoms: ["headache", "fever", "pain", "sore throat", "body ache"],
@@ -14,6 +15,7 @@ const INVENTORY = [
     ageRestriction: "12+ (ask a doctor for children under 12).",
   },
   {
+    id: "advil",
     name: "Advil (Ibuprofen 200mg)",
     icon: "💊",
     symptoms: ["headache", "fever", "pain", "inflammation", "body ache", "cramps"],
@@ -23,6 +25,7 @@ const INVENTORY = [
     ageRestriction: "12+ (ask a doctor for children under 12).",
   },
   {
+    id: "claritin",
     name: "Claritin (Loratadine 10mg)",
     icon: "🤧",
     symptoms: ["allergy", "allergies", "runny nose", "sneezing", "itchy eyes", "hives"],
@@ -32,6 +35,7 @@ const INVENTORY = [
     ageRestriction: "6+ (ask a doctor for children under 6).",
   },
   {
+    id: "benadryl",
     name: "Benadryl (Diphenhydramine 25mg)",
     icon: "🤧",
     symptoms: ["allergy", "allergies", "itching", "hives", "insomnia"],
@@ -41,6 +45,7 @@ const INVENTORY = [
     ageRestriction: "12+ (ask a doctor for children under 12).",
   },
   {
+    id: "mucinex",
     name: "Mucinex (Guaifenesin 400mg)",
     icon: "🍯",
     symptoms: ["cough", "congestion", "mucus"],
@@ -50,6 +55,7 @@ const INVENTORY = [
     ageRestriction: "12+ (ask a doctor for children under 12).",
   },
   {
+    id: "tums",
     name: "Tums (Calcium Carbonate 750mg)",
     icon: "🌿",
     symptoms: ["heartburn", "indigestion", "upset stomach"],
@@ -59,6 +65,7 @@ const INVENTORY = [
     ageRestriction: "12+ (ask a doctor for children under 12).",
   },
   {
+    id: "cortizone10",
     name: "Cortizone-10 (Hydrocortisone 1%)",
     icon: "🩹",
     symptoms: ["rash", "itching", "insect bite", "skin irritation"],
@@ -68,6 +75,7 @@ const INVENTORY = [
     ageRestriction: "2+ (ask a doctor for children under 2).",
   },
   {
+    id: "imodium",
     name: "Imodium A-D (Loperamide 2mg)",
     icon: "🌿",
     symptoms: ["diarrhea"],
@@ -77,6 +85,7 @@ const INVENTORY = [
     ageRestriction: "12+ (ask a doctor for children under 12).",
   },
   {
+    id: "peptobismol",
     name: "Pepto-Bismol (Bismuth Subsalicylate)",
     icon: "🌿",
     symptoms: ["nausea", "upset stomach", "indigestion"],
