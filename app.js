@@ -18,6 +18,25 @@ const FOLLOW_UPS = [
   { key: "medications", question: "Last one — are you taking any other medications right now?" },
 ];
 
+// Recognized symptom keywords used to query the real openFDA OTC drug label
+// database (https://open.fda.gov/apis/drug/label/) — no local product list.
+const SYMPTOM_KEYWORDS = [
+  "headache", "fever", "pain", "sore throat", "body ache", "inflammation", "cramps",
+  "allergy", "allergies", "runny nose", "sneezing", "itchy eyes", "hives", "itching",
+  "insomnia", "cough", "congestion", "mucus", "heartburn", "indigestion",
+  "upset stomach", "rash", "insect bite", "diarrhea", "constipation", "nausea",
+];
+
+const CATEGORY_ICONS = {
+  headache: "💊", fever: "💊", pain: "💊", "sore throat": "💊",
+  "body ache": "💊", inflammation: "💊", cramps: "💊",
+  allergy: "🤧", allergies: "🤧", "runny nose": "🤧", sneezing: "🤧",
+  "itchy eyes": "🤧", hives: "🤧", itching: "🤧", insomnia: "😴",
+  cough: "🍯", congestion: "🍯", mucus: "🍯",
+  heartburn: "🌿", indigestion: "🌿", "upset stomach": "🌿",
+  rash: "🩹", "insect bite": "🩹", diarrhea: "🌿", constipation: "🌿", nausea: "🌿",
+};
+
 const chatEl = document.getElementById("chat");
 const form = document.getElementById("composer");
 const input = document.getElementById("input");
@@ -82,37 +101,116 @@ function isEmergency(text) {
   return EMERGENCY_KEYWORDS.some((k) => text.includes(k));
 }
 
-function recommend() {
-  const match = INVENTORY.find((p) =>
-    p.symptoms.some((s) => answers.symptoms.includes(s))
-  );
+function extractSymptomKeyword(text) {
+  return SYMPTOM_KEYWORDS.find((k) => text.includes(k)) || null;
+}
 
-  if (!match) {
+async function recommend() {
+  const keyword = extractSymptomKeyword(answers.symptoms);
+
+  if (!keyword) {
     addMessageWithDisclaimer(
       "ai",
-      "Hmm, I don't have anything on our shelf that's a great fit for that. Best to swing by and chat with our pharmacist — they'll take good care of you."
+      "I couldn't quite match that to something in our OTC database. Best to swing by and chat with our pharmacist — they'll take good care of you."
     );
-  } else {
-    const card = buildProductCard(match);
-    addMessageWithDisclaimer("ai", "Okay, I think this could help you out:", card);
+    resetFlow();
+    return;
   }
+
+  addMessage("ai", "One sec, let me check what we've got for that...");
+
+  try {
+    const product = await fetchOtcProduct(keyword);
+    if (!product) {
+      addMessageWithDisclaimer(
+        "ai",
+        "Hmm, I don't have anything approved that's a great fit for that. Best to swing by and chat with our pharmacist — they'll take good care of you."
+      );
+    } else {
+      const card = buildProductCard(product);
+      addMessageWithDisclaimer("ai", "Okay, I think this could help you out:", card);
+    }
+  } catch (err) {
+    addMessageWithDisclaimer(
+      "ai",
+      "I'm having trouble reaching our product database right now. Best to check with our pharmacist so you get the right thing."
+    );
+  }
+
   resetFlow();
+}
+
+// Queries the public, no-auth openFDA drug label API, restricted to
+// HUMAN OTC DRUG products only — never prescription/controlled items.
+async function fetchOtcProduct(keyword) {
+  const query = `openfda.product_type:"HUMAN OTC DRUG" AND (purpose:"${keyword}" OR indications_and_usage:"${keyword}")`;
+  const url = `https://api.fda.gov/drug/label.json?search=${encodeURIComponent(query)}&limit=5`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6000);
+
+  let data;
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) return null;
+    data = await res.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  const results = data.results || [];
+  const result = results.find((r) => firstOf(r.purpose) || firstOf(r.indications_and_usage));
+  if (!result) return null;
+
+  return {
+    name: firstOf(result.openfda?.brand_name) || firstOf(result.openfda?.generic_name) || "OTC Product",
+    icon: CATEGORY_ICONS[keyword] || "💊",
+    purpose: firstOf(result.purpose),
+    directions: firstOf(result.dosage_and_administration),
+    warnings: firstOf(result.warnings) || firstOf(result.warnings_and_cautions) || firstOf(result.stop_use),
+    ageRestriction: extractAgeRestriction(result),
+  };
+}
+
+function firstOf(field) {
+  return Array.isArray(field) && field.length ? field[0] : null;
+}
+
+function extractAgeRestriction(result) {
+  const text = [
+    firstOf(result.warnings),
+    firstOf(result.warnings_and_cautions),
+    firstOf(result.pediatric_use),
+    firstOf(result.do_not_use),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const match = text.match(/[^.]*\b\d{1,2}\s*years?\s*of\s*age[^.]*\./i);
+  return match ? match[0].trim() : "See product label for age restrictions.";
 }
 
 function buildProductCard(p) {
   const div = document.createElement("div");
   div.className = "product";
+
+  const rows = [
+    ["Purpose", p.purpose],
+    ["Directions", p.directions],
+    ["Warnings", p.warnings],
+    ["Age restriction", p.ageRestriction],
+  ].filter(([, value]) => Boolean(value));
+
+  const labelHtml = rows
+    .map(([label, value]) => `<div><strong>${label}:</strong> ${value}</div>`)
+    .join("");
+
   div.innerHTML = `
     <div class="product-head">
-      <div class="product-icon">${p.icon || "💊"}</div>
+      <div class="product-icon">${p.icon}</div>
       <h4>${p.name}</h4>
     </div>
-    <div class="label">
-      <div><strong>Directions:</strong> ${p.directions}</div>
-      <div><strong>Dosage:</strong> ${p.dosage}</div>
-      <div><strong>Warnings:</strong> ${p.warnings}</div>
-      <div><strong>Age restriction:</strong> ${p.ageRestriction}</div>
-    </div>
+    <div class="label">${labelHtml}</div>
   `;
   return div;
 }
