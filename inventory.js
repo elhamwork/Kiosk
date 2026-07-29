@@ -1,0 +1,88 @@
+// Approved OTC inventory. Label text (purpose, directions, warnings, age
+// restrictions) mirrors each product's standardized FDA "Drug Facts" panel —
+// the same public-domain label text required on every OTC package, not
+// scraped from any retailer. Swap this file for the real uploaded inventory
+// when one is available.
+const INVENTORY = [
+  {
+    name: "Tylenol Extra Strength (Acetaminophen 500mg)",
+    icon: "💊",
+    symptoms: ["headache", "fever", "pain", "sore throat", "body ache"],
+    purpose: "Pain reliever / fever reducer",
+    directions: "Adults and children 12 years and over: take 2 caplets every 6 hours with water. Do not take more than 6 caplets in 24 hours.",
+    warnings: "Liver warning: this product contains acetaminophen. Severe liver damage may occur if taken with 3 or more alcoholic drinks per day, or more than 4000mg in 24 hours.",
+    ageRestriction: "12+ (ask a doctor for children under 12).",
+  },
+  {
+    name: "Advil (Ibuprofen 200mg)",
+    icon: "💊",
+    symptoms: ["headache", "fever", "pain", "inflammation", "body ache", "cramps"],
+    purpose: "Pain reliever / fever reducer",
+    directions: "Adults and children 12 years and over: take 1 tablet every 4 to 6 hours with food or water. Do not take more than 6 tablets in 24 hours.",
+    warnings: "May cause stomach bleeding. Ask a doctor before use if pregnant, especially during the last 3 months.",
+    ageRestriction: "12+ (ask a doctor for children under 12).",
+  },
+  {
+    name: "Claritin (Loratadine 10mg)",
+    icon: "🤧",
+    symptoms: ["allergy", "allergies", "runny nose", "sneezing", "itchy eyes", "hives"],
+    purpose: "Antihistamine",
+    directions: "Adults and children 6 years and over: take 1 tablet once daily. Do not take more than 1 tablet in 24 hours.",
+    warnings: "Non-drowsy formula. Ask a doctor before use if you have liver or kidney disease.",
+    ageRestriction: "6+ (ask a doctor for children under 6).",
+  },
+  {
+    name: "Benadryl (Diphenhydramine 25mg)",
+    icon: "🤧",
+    symptoms: ["allergy", "allergies", "itching", "hives", "insomnia"],
+    purpose: "Antihistamine",
+    directions: "Adults and children 12 years and over: take 1 to 2 tablets every 4 to 6 hours. Do not take more than 6 tablets in 24 hours.",
+    warnings: "May cause marked drowsiness. Do not drive or operate machinery after taking.",
+    ageRestriction: "12+ (ask a doctor for children under 12).",
+  },
+  {
+    name: "Mucinex (Guaifenesin 400mg)",
+    icon: "🍯",
+    symptoms: ["cough", "congestion", "mucus"],
+    purpose: "Expectorant",
+    directions: "Adults and children 12 years and over: take 1 to 2 tablets every 4 hours with a full glass of water. Do not take more than 6 tablets in 24 hours.",
+    warnings: "Stop use and ask a doctor if cough lasts more than 7 days or occurs with rash or persistent headache.",
+    ageRestriction: "12+ (ask a doctor for children under 12).",
+  },
+  {
+    name: "Tums (Calcium Carbonate 750mg)",
+    icon: "🌿",
+    symptoms: ["heartburn", "indigestion", "upset stomach"],
+    purpose: "Antacid",
+    directions: "Chew 2-4 tablets as symptoms occur. Do not take more than 10 tablets in 24 hours.",
+    warnings: "Do not use the maximum dosage for more than 2 weeks except under the advice of a doctor.",
+    ageRestriction: "12+ (ask a doctor for children under 12).",
+  },
+  {
+    name: "Cortizone-10 (Hydrocortisone 1%)",
+    icon: "🩹",
+    symptoms: ["rash", "itching", "insect bite", "skin irritation"],
+    purpose: "External analgesic / anti-itch",
+    directions: "Apply to affected area not more than 3 to 4 times daily.",
+    warnings: "For external use only. Avoid contact with eyes. Stop use and ask a doctor if condition worsens or does not improve within 7 days.",
+    ageRestriction: "2+ (ask a doctor for children under 2).",
+  },
+  {
+    name: "Imodium A-D (Loperamide 2mg)",
+    icon: "🌿",
+    symptoms: ["diarrhea"],
+    purpose: "Anti-diarrheal",
+    directions: "Adults and children 12 years and over: take 2 caplets after the first loose stool; 1 caplet after each subsequent loose stool. Do not take more than 4 caplets in 24 hours.",
+    warnings: "Do not use if you have bloody or black stool. Ask a doctor if diarrhea lasts more than 2 days.",
+    ageRestriction: "12+ (ask a doctor for children under 12).",
+  },
+  {
+    name: "Pepto-Bismol (Bismuth Subsalicylate)",
+    icon: "🌿",
+    symptoms: ["nausea", "upset stomach", "indigestion"],
+    purpose: "Upset stomach reliever / antinauseant",
+    directions: "Adults and children 12 years and over: take 2 tablets every 30 to 60 minutes as needed. Do not take more than 8 doses in 24 hours.",
+    warnings: "Reye's syndrome warning: children and teenagers who have or are recovering from chicken pox or flu symptoms should not use this product.",
+    ageRestriction: "12+ (ask a doctor for children under 12).",
+  },
+];
