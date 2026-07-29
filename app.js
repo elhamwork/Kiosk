@@ -6,16 +6,16 @@ const EMERGENCY_KEYWORDS = [
   "high fever in a baby",
 ];
 
+// Required exact text — do not reword.
 const DISCLAIMER = "This kiosk provides information about over-the-counter products only. It does not provide medical advice or diagnoses. Always read the product label before use and consult a pharmacist or healthcare professional if you have questions or if your symptoms worsen or do not improve.";
-
 const EMERGENCY_MESSAGE = "Your symptoms may require immediate medical attention. Please seek emergency care or speak with a healthcare professional immediately.";
 
 const FOLLOW_UPS = [
-  { key: "age", question: "Got it. What is your age?" },
-  { key: "duration", question: "How long have you had these symptoms?" },
-  { key: "allergies", question: "Do you have any allergies?" },
-  { key: "pregnancy", question: "Are you pregnant or nursing? (yes/no/not applicable)" },
-  { key: "medications", question: "Are you currently taking any other medications?" },
+  { key: "age", question: "Got it, thanks for telling me. How old are you?" },
+  { key: "duration", question: "How long has this been going on?" },
+  { key: "allergies", question: "Any allergies I should know about?" },
+  { key: "pregnancy", question: "Are you pregnant or nursing? (just so I recommend safely) — yes, no, or n/a" },
+  { key: "medications", question: "Last one — are you taking any other medications right now?" },
 ];
 
 const chatEl = document.getElementById("chat");
@@ -26,7 +26,7 @@ let step = "symptoms";
 let followUpIndex = 0;
 let answers = {};
 
-addMessage("ai", "Hi, what symptoms are you experiencing today?");
+addMessage("ai", "Hey there 👋 I'm here to help. What's going on today?");
 
 form.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -34,7 +34,7 @@ form.addEventListener("submit", (e) => {
   if (!text) return;
   addMessage("user", text);
   input.value = "";
-  handleInput(text);
+  setTimeout(() => handleInput(text), 300);
 });
 
 function handleInput(text) {
@@ -70,9 +70,8 @@ function handleInput(text) {
     return;
   }
 
-  // conversation finished, restart
   resetFlow();
-  addMessage("ai", "What symptoms are you experiencing today?");
+  addMessage("ai", "What's going on today?");
 }
 
 function askNextFollowUp() {
@@ -91,11 +90,11 @@ function recommend() {
   if (!match) {
     addMessageWithDisclaimer(
       "ai",
-      "No suitable OTC product is available for these symptoms. Please consult a pharmacist."
+      "Hmm, I don't have anything on our shelf that's a great fit for that. Best to swing by and chat with our pharmacist — they'll take good care of you."
     );
   } else {
     const card = buildProductCard(match);
-    addMessageWithDisclaimer("ai", "Based on what you shared, here is an OTC option:", card);
+    addMessageWithDisclaimer("ai", "Okay, I think this could help you out:", card);
   }
   resetFlow();
 }
@@ -104,7 +103,10 @@ function buildProductCard(p) {
   const div = document.createElement("div");
   div.className = "product";
   div.innerHTML = `
-    <h4>${p.name}</h4>
+    <div class="product-head">
+      <div class="product-icon">${p.icon || "💊"}</div>
+      <h4>${p.name}</h4>
+    </div>
     <div class="label">
       <div><strong>Directions:</strong> ${p.directions}</div>
       <div><strong>Dosage:</strong> ${p.dosage}</div>
@@ -121,25 +123,53 @@ function resetFlow() {
   answers = {};
 }
 
+function avatarFor(role) {
+  if (role === "user") return "🙂";
+  if (role === "emergency") return "⚠️";
+  return "❤️";
+}
+
 function addMessage(role, text) {
-  const div = document.createElement("div");
-  div.className = `msg ${role}`;
-  div.textContent = text;
-  chatEl.appendChild(div);
+  const row = document.createElement("div");
+  row.className = `row ${role}`;
+
+  const avatar = document.createElement("div");
+  avatar.className = `avatar ${role}`;
+  avatar.textContent = avatarFor(role);
+
+  const bubble = document.createElement("div");
+  bubble.className = "msg";
+  bubble.textContent = text;
+
+  row.appendChild(avatar);
+  row.appendChild(bubble);
+  chatEl.appendChild(row);
   chatEl.scrollTop = chatEl.scrollHeight;
 }
 
 function addMessageWithDisclaimer(role, text, extraNode) {
-  const div = document.createElement("div");
-  div.className = `msg ${role}`;
+  const row = document.createElement("div");
+  row.className = `row ${role}`;
+
+  const avatar = document.createElement("div");
+  avatar.className = `avatar ${role}`;
+  avatar.textContent = avatarFor(role);
+
+  const bubble = document.createElement("div");
+  bubble.className = "msg";
+
   const textNode = document.createElement("span");
   textNode.textContent = text;
-  div.appendChild(textNode);
-  if (extraNode) div.appendChild(extraNode);
+  bubble.appendChild(textNode);
+  if (extraNode) bubble.appendChild(extraNode);
+
   const disc = document.createElement("span");
   disc.className = "disclaimer";
   disc.textContent = DISCLAIMER;
-  div.appendChild(disc);
-  chatEl.appendChild(div);
+  bubble.appendChild(disc);
+
+  row.appendChild(avatar);
+  row.appendChild(bubble);
+  chatEl.appendChild(row);
   chatEl.scrollTop = chatEl.scrollHeight;
 }

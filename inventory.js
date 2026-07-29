@@ -2,6 +2,7 @@
 const INVENTORY = [
   {
     name: "Acetaminophen 500mg Tablets",
+    icon: "💊",
     symptoms: ["headache", "fever", "pain", "sore throat", "body ache"],
     directions: "Take 2 tablets every 6 hours as needed.",
     dosage: "Max 6 tablets (3000mg) per 24 hours.",
@@ -10,6 +11,7 @@ const INVENTORY = [
   },
   {
     name: "Ibuprofen 200mg Tablets",
+    icon: "💊",
     symptoms: ["headache", "fever", "pain", "inflammation", "body ache", "cramps"],
     directions: "Take 1-2 tablets every 4-6 hours with food.",
     dosage: "Max 6 tablets (1200mg) per 24 hours.",
@@ -18,6 +20,7 @@ const INVENTORY = [
   },
   {
     name: "Loratadine 10mg Tablets",
+    icon: "🤧",
     symptoms: ["allergy", "runny nose", "sneezing", "itchy eyes", "hives"],
     directions: "Take 1 tablet once daily.",
     dosage: "Max 1 tablet (10mg) per 24 hours.",
@@ -26,6 +29,7 @@ const INVENTORY = [
   },
   {
     name: "Diphenhydramine 25mg Tablets",
+    icon: "🤧",
     symptoms: ["allergy", "itching", "hives", "mild insomnia"],
     directions: "Take 1-2 tablets every 4-6 hours.",
     dosage: "Max 6 tablets (150mg) per 24 hours.",
@@ -34,6 +38,7 @@ const INVENTORY = [
   },
   {
     name: "Guaifenesin Cough Syrup",
+    icon: "🍯",
     symptoms: ["cough", "chest congestion", "mucus"],
     directions: "Take 10-20mL every 4 hours with water.",
     dosage: "Max 6 doses per 24 hours.",
@@ -42,6 +47,7 @@ const INVENTORY = [
   },
   {
     name: "Antacid Chewable Tablets",
+    icon: "🌿",
     symptoms: ["heartburn", "indigestion", "upset stomach"],
     directions: "Chew 2-4 tablets as symptoms occur.",
     dosage: "Max 16 tablets per 24 hours.",
@@ -50,6 +56,7 @@ const INVENTORY = [
   },
   {
     name: "Hydrocortisone 1% Cream",
+    icon: "🩹",
     symptoms: ["rash", "itching", "insect bite", "skin irritation"],
     directions: "Apply a thin layer to affected area up to 3-4 times daily.",
     dosage: "Do not use for more than 7 days without consulting a doctor.",

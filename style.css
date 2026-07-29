@@ -1,12 +1,16 @@
 :root {
+  --cvs-red: #cc0000;
+  --cvs-red-dark: #a60000;
   --bg: #ffffff;
-  --text: #37352f;
-  --muted: #9b9a97;
-  --border: #ebebea;
-  --hover: #f7f6f5;
-  --accent: #2383e2;
-  --warn-bg: #fdf3f2;
-  --warn-border: #eb5757;
+  --text: #1a1a1a;
+  --muted: #7a7a7a;
+  --border: #ececec;
+  --bubble-ai: #ffffff;
+  --bubble-user: #f4f4f4;
+  --hover: #faf7f7;
+  --warn-bg: #fff2f2;
+  --warn-border: #cc0000;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 * { box-sizing: border-box; }
@@ -15,65 +19,139 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 15px;
-  line-height: 1.5;
+  line-height: 1.55;
   display: flex;
   flex-direction: column;
   height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* ---------- Topbar ---------- */
 
 .topbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
+  justify-content: space-between;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--border);
 }
 
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
 }
 
-.title {
-  font-weight: 600;
+.brand-mark {
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: -0.5px;
+  color: var(--cvs-red);
+  text-transform: lowercase;
 }
+
+.brand-heart {
+  color: var(--cvs-red);
+  font-size: 16px;
+}
+
+.brand-sub {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #2ecc71;
+}
+
+/* ---------- Chat ---------- */
 
 .chat {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 20px;
-  max-width: 680px;
+  padding: 28px 20px 12px;
+  max-width: 640px;
   width: 100%;
   margin: 0 auto;
 }
 
+.row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.row.user {
+  flex-direction: row-reverse;
+}
+
+.avatar {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  box-shadow: var(--shadow);
+}
+
+.avatar.ai {
+  background: var(--cvs-red);
+}
+
+.avatar.user {
+  background: #e4e4e4;
+}
+
+.avatar.emergency {
+  background: #7a1f1f;
+}
+
 .msg {
-  margin-bottom: 16px;
-  padding: 10px 14px;
-  border-radius: 6px;
-  max-width: 85%;
+  padding: 12px 16px;
+  border-radius: 18px;
+  max-width: 78%;
   white-space: pre-wrap;
+  box-shadow: var(--shadow);
 }
 
-.msg.user {
-  background: var(--hover);
-  margin-left: auto;
-}
-
-.msg.ai {
-  background: var(--bg);
+.row.ai .msg {
+  background: var(--bubble-ai);
   border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
 }
 
-.msg.emergency {
+.row.user .msg {
+  background: var(--bubble-user);
+  border-bottom-right-radius: 4px;
+}
+
+.row.emergency .msg {
   background: var(--warn-bg);
   border: 1px solid var(--warn-border);
   color: #7a1f1f;
   font-weight: 600;
+  border-bottom-left-radius: 4px;
 }
 
 .msg .disclaimer {
@@ -81,69 +159,104 @@ body {
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--border);
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
+  white-space: normal;
 }
 
+/* ---------- Product card ---------- */
+
 .product {
-  margin-top: 8px;
-  padding: 10px;
+  margin-top: 10px;
+  padding: 14px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 14px;
   background: var(--hover);
   white-space: normal;
 }
 
+.product-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.product-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex: 0 0 auto;
+}
+
+.product h4 {
+  margin: 0;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -0.2px;
+}
+
 .product .label div {
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  font-size: 13.5px;
+  color: #444;
 }
 
 .product .label div:last-child {
   margin-bottom: 0;
 }
 
-.product h4 {
-  margin: 0 0 4px;
+.product .label strong {
+  color: var(--text);
+  font-weight: 700;
 }
 
-.product .label {
-  font-size: 13px;
-  color: var(--muted);
-}
+/* ---------- Composer ---------- */
 
 .composer {
   display: flex;
   gap: 8px;
-  padding: 16px 20px;
-  border-top: 1px solid var(--border);
-  max-width: 680px;
+  padding: 16px 20px 20px;
+  max-width: 640px;
   width: 100%;
   margin: 0 auto;
 }
 
 .composer input {
   flex: 1;
-  padding: 10px 12px;
+  padding: 13px 16px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 999px;
   font-size: 15px;
   outline: none;
+  background: var(--hover);
 }
 
 .composer input:focus {
-  border-color: var(--accent);
+  border-color: var(--cvs-red);
+  background: var(--bg);
 }
 
 .composer button {
-  padding: 10px 16px;
+  width: 46px;
+  height: 46px;
   border: none;
-  border-radius: 6px;
-  background: var(--accent);
-  color: white;
-  font-size: 14px;
+  border-radius: 50%;
+  background: var(--cvs-red);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  flex: 0 0 auto;
+  transition: background 0.15s ease;
 }
 
 .composer button:hover {
-  opacity: 0.9;
+  background: var(--cvs-red-dark);
 }

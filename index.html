@@ -3,20 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OTC Kiosk</title>
+<title>CVS OTC Kiosk</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="topbar">
-    <span class="dot"></span>
-    <span class="title">OTC Kiosk</span>
+    <div class="brand">
+      <span class="brand-mark">cvs<span class="brand-heart">♥</span></span>
+      <span class="brand-sub">pharmacy kiosk</span>
+    </div>
+    <div class="status">
+      <span class="status-dot"></span>
+      Here to help
+    </div>
   </header>
 
   <main class="chat" id="chat"></main>
 
   <form class="composer" id="composer">
-    <input id="input" type="text" placeholder="How can we help today?" autocomplete="off" />
-    <button type="submit">Send</button>
+    <input id="input" type="text" placeholder="Type here..." autocomplete="off" />
+    <button type="submit">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 11L21 3L14 21L11 13L3 11Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+      </svg>
+    </button>
   </form>
 
   <script src="inventory.js"></script>
