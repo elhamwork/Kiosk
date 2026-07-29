@@ -65,23 +65,33 @@ async function groqFriendlyReply(userText) {
   return groqChat(messages, { maxTokens: 60 });
 }
 
-// Asks the LLM to classify the conversation into exactly one product id
-// from the given whitelist (or "none"). The raw text response is NEVER
-// trusted directly — app.js strictly validates it against the same
-// whitelist before using it for anything.
-async function groqClassifyProduct(summary, allowedIds) {
+// Ranks/picks the best-matching product ids for the form's "top 3" results.
+// Crucially, `candidateIds` here is already the *safety-filtered* list from
+// app.js (age minimum, allergy tags, pregnancy caution already applied in
+// plain code) — the LLM only gets to reorder/select within that safe set,
+// never introduce or restore an item app.js already excluded. The raw
+// response is still strictly validated against candidateIds before use.
+async function groqRankProducts(summary, candidateIds) {
+  if (candidateIds.length === 0) return [];
   const messages = [
     {
       role: "system",
       content:
-        "You are a strict classifier for an over-the-counter pharmacy kiosk. " +
-        `Given a customer's symptoms and answers, respond with ONLY one of these exact ids, nothing else, no punctuation: ${allowedIds.join(", ")}, none. ` +
-        "Pick the single best-matching OTC product id. If nothing fits well, or the symptoms sound like they need a doctor or pharmacist rather than a simple OTC product, respond with exactly: none",
+        "You are a strict ranking assistant for an over-the-counter pharmacy kiosk. " +
+        `Given a customer's symptoms and answers, rank these candidate product ids from best to worst match: ${candidateIds.join(", ")}. ` +
+        "Respond with ONLY a comma-separated list of ids from that exact set, best match first, nothing else. " +
+        "Do not include any id not in the list. If none of them are a good fit, respond with exactly: none",
     },
     { role: "user", content: summary },
   ];
-  const raw = await groqChat(messages, { maxTokens: 10 });
-  return raw.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const raw = await groqChat(messages, { maxTokens: 40 });
+  const cleaned = raw
+    .toLowerCase()
+    .split(",")
+    .map((s) => s.replace(/[^a-z0-9]/g, ""))
+    .filter(Boolean);
+  const ranked = cleaned.filter((id) => candidateIds.includes(id));
+  return [...new Set(ranked)];
 }
 
 // Asks whether a message actually describes a symptom/health concern, so

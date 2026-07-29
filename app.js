@@ -11,19 +11,6 @@ const EMERGENCY_KEYWORDS = [
 const DISCLAIMER = "This kiosk provides information about over-the-counter products only. It does not provide medical advice or diagnoses. Always read the product label before use and consult a pharmacist or healthcare professional if you have questions or if your symptoms worsen or do not improve.";
 const EMERGENCY_MESSAGE = "Your symptoms may require immediate medical attention. Please seek emergency care or speak with a healthcare professional immediately.";
 
-// Fixed, code-enforced follow-up sequence. The LLM cannot skip, reorder,
-// or talk its way out of any of these — app.js always asks all five,
-// regardless of what the user's messages say.
-const FOLLOW_UPS = [
-  { key: "age", question: "Got it, thanks for telling me. How old are you?" },
-  { key: "duration", question: "How long has this been going on?" },
-  { key: "allergies", question: "Any allergies I should know about?" },
-  { key: "pregnancy", question: "Are you pregnant or nursing? (just so I recommend safely) — yes, no, or n/a" },
-  { key: "medications", question: "Last one — are you taking any other medications right now?" },
-];
-
-// Deterministic keyword fallback, used if the symptom text can't be
-// classified locally and Groq is unavailable.
 const SYMPTOM_KEYWORDS = [
   "headache", "fever", "pain", "sore throat", "body ache", "inflammation", "cramps",
   "allergy", "allergies", "runny nose", "sneezing", "itchy eyes", "hives", "itching",
@@ -31,9 +18,6 @@ const SYMPTOM_KEYWORDS = [
   "upset stomach", "rash", "insect bite", "diarrhea", "nausea",
 ];
 
-// Short non-answers we can catch without any LLM call — greetings,
-// confusion, filler. Kept intentionally small: real free-text answers
-// (duration, allergies, medications) are otherwise accepted as-is.
 const NON_ANSWERS = new Set([
   "hi", "hello", "hey", "yo", "sup", "huh", "what", "?", "??", "idk",
   "i dont know", "i don't know", "dunno", "who", "hm", "hmm", "test",
@@ -43,120 +27,13 @@ function isNonAnswer(text) {
   return NON_ANSWERS.has(text.trim().toLowerCase());
 }
 
-function looksLikeAge(text) {
-  return /\d{1,3}/.test(text);
-}
-
-const PREGNANCY_RESPONSES = new Set([
-  "yes", "y", "yeah", "yep", "yup",
-  "no", "n", "nope", "nah",
-  "n/a", "na", "not applicable",
-]);
-
-function looksLikePregnancyAnswer(text) {
-  return PREGNANCY_RESPONSES.has(text.trim().toLowerCase());
-}
-
-const chatEl = document.getElementById("chat");
-const form = document.getElementById("composer");
-const input = document.getElementById("input");
-
-let step = "symptoms";
-let followUpIndex = 0;
-let answers = {};
-
-addMessage("ai", "Hey there 👋 I'm here to help. What's going on today?");
-
-form.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const text = input.value.trim();
-  if (!text) return;
-  addMessage("user", text);
-  input.value = "";
-  handleInput(text);
-});
-
-async function handleInput(text) {
-  const lower = text.toLowerCase();
-
-  // Hard safety gate — runs in plain code, before any LLM call, on every
-  // single message regardless of conversation state. Cannot be bypassed
-  // by prompt injection because the LLM is never consulted to decide
-  // whether this branch fires.
-  if (EMERGENCY_KEYWORDS.some((k) => lower.includes(k))) {
-    addMessage("emergency", EMERGENCY_MESSAGE);
-    resetFlow();
-    return;
-  }
-
-  // Secondary, LLM-assisted emergency check. Purely additive: it can only
-  // add a positive on top of the keyword gate above, never remove it and
-  // never suppress it — if this call fails or is inconclusive we simply
-  // continue with the normal flow, so the kiosk never breaks because of it.
-  try {
-    if (await groqIsEmergency(text)) {
-      addMessage("emergency", EMERGENCY_MESSAGE);
-      resetFlow();
-      return;
-    }
-  } catch (err) {
-    // ignore — keyword gate above is the real safety net
-  }
-
-  if (step === "symptoms") {
-    if (!(await looksLikeSymptom(lower))) {
-      addMessage("ai", "Hmm, I don't think I caught what's bothering you — mind telling me a bit about your symptoms?");
-      return;
-    }
-    answers.symptoms = lower;
-    step = "followups";
-    followUpIndex = 0;
-    await respondWarmly(text);
-    askNextFollowUp();
-    return;
-  }
-
-  if (step === "followups") {
-    const current = FOLLOW_UPS[followUpIndex];
-
-    if (current.key === "age" && !looksLikeAge(lower)) {
-      addMessage("ai", "Just need a number there — how old are you?");
-      return;
-    }
-    if (current.key === "pregnancy" && !looksLikePregnancyAnswer(lower)) {
-      addMessage("ai", "Sorry, just to be safe — could you answer with yes, no, or n/a?");
-      return;
-    }
-    if (["duration", "allergies", "medications"].includes(current.key) && isNonAnswer(lower)) {
-      addMessage("ai", "Sorry, could you say a bit more so I get this right?");
-      return;
-    }
-
-    answers[current.key] = lower;
-    followUpIndex++;
-    if (followUpIndex < FOLLOW_UPS.length) {
-      askNextFollowUp();
-    } else {
-      await recommend();
-    }
-    return;
-  }
-
-  resetFlow();
-  addMessage("ai", "What's going on today?");
-}
-
-// Deterministic keyword match is checked first (fast, always available).
-// If nothing matches, an obvious non-answer (greeting/gibberish) is
-// rejected outright without needing the LLM. Anything else is treated as
-// plausibly a symptom by default — Groq only gets to ADD a rejection
-// (catching things like "what's up" that dodge both checks), never widen
-// what counts as valid, and any Groq failure just falls back to accepting
+// Deterministic keyword match first; Groq can only ADD a rejection for
+// things that dodge the keyword+non-answer check (e.g. "what's up"), never
+// widen what counts as valid, and any failure just falls back to accepting
 // the input so the kiosk keeps working offline.
 async function looksLikeSymptom(text) {
   if (SYMPTOM_KEYWORDS.some((k) => text.includes(k))) return true;
   if (isNonAnswer(text)) return false;
-
   try {
     return await groqIsSymptomDescription(text);
   } catch (err) {
@@ -164,147 +41,187 @@ async function looksLikeSymptom(text) {
   }
 }
 
-async function respondWarmly(userText) {
+async function isEmergency(text) {
+  // Hard safety gate — plain code, cannot be bypassed by prompt injection
+  // because the LLM is never consulted to decide whether this fires.
+  if (EMERGENCY_KEYWORDS.some((k) => text.includes(k))) return true;
+  // Secondary, LLM-assisted check — purely additive, never removes the
+  // keyword gate above, and any failure just means "no extra signal".
   try {
-    const reply = await groqFriendlyReply(userText);
-    if (reply) addMessage("ai", reply);
+    return await groqIsEmergency(text);
   } catch (err) {
-    // Groq unavailable — silently skip the extra warmth, flow continues.
+    return false;
   }
 }
 
-function askNextFollowUp() {
-  addMessage("ai", FOLLOW_UPS[followUpIndex].question);
+const form = document.getElementById("lookup-form");
+const symptomInput = document.getElementById("symptom");
+const ageSelect = document.getElementById("age");
+const genderSelect = document.getElementById("gender");
+const pregnancyField = document.getElementById("pregnancy-field");
+const pregnancySelect = document.getElementById("pregnancy");
+const allergySelect = document.getElementById("allergy");
+const durationSelect = document.getElementById("duration");
+const medicationsInput = document.getElementById("medications");
+const goButton = form.querySelector(".go-button");
+const resultsSection = document.getElementById("results");
+const resultsList = document.getElementById("results-list");
+const resultsDisclaimer = document.getElementById("results-disclaimer");
+
+genderSelect.addEventListener("change", updatePregnancyVisibility);
+updatePregnancyVisibility();
+
+function updatePregnancyVisibility() {
+  const hide = genderSelect.value === "male";
+  pregnancyField.classList.toggle("hidden", hide);
+  if (hide) pregnancySelect.value = "na";
 }
 
-async function recommend() {
-  addMessage("ai", "One sec, let me see what fits best...");
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const symptomText = symptomInput.value.trim();
+  if (!symptomText) return;
 
-  const allowedIds = INVENTORY.map((p) => p.id);
-  let matchedId = null;
+  goButton.disabled = true;
+  goButton.textContent = "Checking...";
+  clearResults();
 
   try {
-    const summary = buildSummary();
-    const classified = await groqClassifyProduct(summary, allowedIds);
-    // Strict whitelist check — the raw LLM string is NEVER used directly.
-    // Anything other than an exact, known id (including "none" or garbage
-    // output from a prompt-injection attempt) falls through safely.
-    if (allowedIds.includes(classified)) {
-      matchedId = classified;
+    const lower = symptomText.toLowerCase();
+
+    if (await isEmergency(lower)) {
+      showEmergency();
+      return;
     }
+
+    if (!(await looksLikeSymptom(lower))) {
+      showNoMatch("Hmm, that doesn't sound like a symptom to me — could you tell me a bit more about what's bothering you?");
+      return;
+    }
+
+    await runRecommendation(lower);
+  } finally {
+    goButton.disabled = false;
+    goButton.textContent = "Go";
+  }
+});
+
+async function runRecommendation(symptomText) {
+  const age = Number(ageSelect.value);
+  const allergy = allergySelect.value;
+  const pregnant = pregnancySelect.value === "yes";
+
+  // Deterministic, code-enforced safety filter — applied BEFORE the LLM
+  // ever sees anything. The LLM (below) can only rank or drop items from
+  // this already-safe candidate list; it can never add an item back that
+  // was excluded here, no matter what a user types.
+  const candidates = INVENTORY.filter((p) => {
+    const symptomMatch = p.symptoms.some((s) => symptomText.includes(s));
+    const ageOk = age >= p.ageMin;
+    const allergyOk = allergy === "none" || allergy === "other" || !p.allergyTags.includes(allergy);
+    const pregnancyOk = !(pregnant && p.pregnancyCaution);
+    return symptomMatch && ageOk && allergyOk && pregnancyOk;
+  });
+
+  if (candidates.length === 0) {
+    showNoMatch("I don't have anything approved that's a safe fit for that. Best to check with our pharmacist — they'll take good care of you.");
+    return;
+  }
+
+  const candidateIds = candidates.map((p) => p.id);
+  let rankedIds = [];
+
+  try {
+    const summary = buildSummary(symptomText);
+    const ranked = await groqRankProducts(summary, candidateIds);
+    // Strict whitelist check — every id must already be in our
+    // safety-filtered candidate list, or it's discarded.
+    rankedIds = ranked.filter((id) => candidateIds.includes(id));
   } catch (err) {
-    // Groq unavailable — fall back to deterministic local matching below.
+    // Groq unavailable — fall through to local scoring below.
   }
 
-  if (!matchedId) {
-    const local = INVENTORY.find((p) => p.symptoms.some((s) => answers.symptoms.includes(s)));
-    matchedId = local?.id || null;
+  if (rankedIds.length === 0) {
+    rankedIds = [...candidates]
+      .sort((a, b) => matchScore(b, symptomText) - matchScore(a, symptomText))
+      .map((p) => p.id);
   }
 
-  const product = INVENTORY.find((p) => p.id === matchedId);
-
-  if (!product) {
-    addMessageWithDisclaimer(
-      "ai",
-      "Hmm, I don't have anything approved that's a great fit for that. Best to swing by and chat with our pharmacist — they'll take good care of you."
-    );
-  } else {
-    const card = buildProductCard(product);
-    addMessageWithDisclaimer("ai", "Okay, I think this could help you out:", card);
-  }
-
-  resetFlow();
+  const top = rankedIds.slice(0, 3).map((id) => INVENTORY.find((p) => p.id === id));
+  showResults(top);
 }
 
-function buildSummary() {
+function matchScore(product, symptomText) {
+  return product.symptoms.filter((s) => symptomText.includes(s)).length;
+}
+
+function buildSummary(symptomText) {
   return [
-    `Symptoms: ${answers.symptoms}`,
-    `Age: ${answers.age}`,
-    `Duration: ${answers.duration}`,
-    `Allergies: ${answers.allergies}`,
-    `Pregnant/nursing: ${answers.pregnancy}`,
-    `Other medications: ${answers.medications}`,
+    `Symptoms: ${symptomText}`,
+    `Age: ${ageSelect.options[ageSelect.selectedIndex].text}`,
+    `Gender: ${genderSelect.value}`,
+    `Duration: ${durationSelect.options[durationSelect.selectedIndex].text}`,
+    `Allergy: ${allergySelect.options[allergySelect.selectedIndex].text}`,
+    `Pregnant/nursing: ${pregnancySelect.value}`,
+    `Other medications: ${medicationsInput.value.trim() || "none"}`,
   ].join("\n");
 }
 
-function buildProductCard(p) {
-  const div = document.createElement("div");
-  div.className = "product";
+function clearResults() {
+  resultsSection.hidden = true;
+  resultsSection.classList.remove("emergency");
+  resultsList.innerHTML = "";
+  resultsDisclaimer.textContent = "";
+  const existingBanner = document.querySelector(".emergency-banner");
+  if (existingBanner) existingBanner.remove();
+}
+
+function showEmergency() {
+  clearResults();
+  const banner = document.createElement("div");
+  banner.className = "emergency-banner";
+  banner.textContent = EMERGENCY_MESSAGE;
+  form.insertAdjacentElement("afterend", banner);
+}
+
+function showNoMatch(message) {
+  resultsSection.hidden = false;
+  resultsList.innerHTML = "";
+  const li = document.createElement("li");
+  li.className = "no-match";
+  li.textContent = message;
+  resultsList.appendChild(li);
+  resultsDisclaimer.textContent = DISCLAIMER;
+}
+
+function showResults(products) {
+  resultsSection.hidden = false;
+  resultsList.innerHTML = "";
+  products.forEach((p, i) => {
+    resultsList.appendChild(buildResultCard(p, i + 1));
+  });
+  resultsDisclaimer.textContent = DISCLAIMER;
+}
+
+function buildResultCard(p, rank) {
+  const li = document.createElement("li");
+  li.className = "result-card";
 
   const rows = [
     ["Purpose", p.purpose],
     ["Directions", p.directions],
     ["Warnings", p.warnings],
     ["Age restriction", p.ageRestriction],
-  ].filter(([, value]) => Boolean(value));
+  ];
+  const detailsHtml = rows.map(([label, value]) => `<div><strong>${label}:</strong> ${value}</div>`).join("");
 
-  const labelHtml = rows
-    .map(([label, value]) => `<div><strong>${label}:</strong> ${value}</div>`)
-    .join("");
-
-  div.innerHTML = `
-    <div class="product-head">
-      <div class="product-icon">${p.icon}</div>
-      <h4>${p.name}</h4>
+  li.innerHTML = `
+    <div class="result-head">
+      <div class="result-rank">${rank}</div>
+      <div class="result-icon">${p.icon}</div>
+      <div class="result-name">${p.name}</div>
     </div>
-    <div class="label">${labelHtml}</div>
+    <div class="result-details">${detailsHtml}</div>
   `;
-  return div;
-}
-
-function resetFlow() {
-  step = "symptoms";
-  followUpIndex = 0;
-  answers = {};
-}
-
-function avatarFor(role) {
-  if (role === "user") return "🙂";
-  if (role === "emergency") return "⚠️";
-  return "❤️";
-}
-
-function addMessage(role, text) {
-  const row = document.createElement("div");
-  row.className = `row ${role}`;
-
-  const avatar = document.createElement("div");
-  avatar.className = `avatar ${role}`;
-  avatar.textContent = avatarFor(role);
-
-  const bubble = document.createElement("div");
-  bubble.className = "msg";
-  bubble.textContent = text;
-
-  row.appendChild(avatar);
-  row.appendChild(bubble);
-  chatEl.appendChild(row);
-  chatEl.scrollTop = chatEl.scrollHeight;
-}
-
-function addMessageWithDisclaimer(role, text, extraNode) {
-  const row = document.createElement("div");
-  row.className = `row ${role}`;
-
-  const avatar = document.createElement("div");
-  avatar.className = `avatar ${role}`;
-  avatar.textContent = avatarFor(role);
-
-  const bubble = document.createElement("div");
-  bubble.className = "msg";
-
-  const textNode = document.createElement("span");
-  textNode.textContent = text;
-  bubble.appendChild(textNode);
-  if (extraNode) bubble.appendChild(extraNode);
-
-  const disc = document.createElement("span");
-  disc.className = "disclaimer";
-  disc.textContent = DISCLAIMER;
-  bubble.appendChild(disc);
-
-  row.appendChild(avatar);
-  row.appendChild(bubble);
-  chatEl.appendChild(row);
-  chatEl.scrollTop = chatEl.scrollHeight;
+  return li;
 }
