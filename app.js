@@ -31,6 +31,32 @@ const SYMPTOM_KEYWORDS = [
   "upset stomach", "rash", "insect bite", "diarrhea", "nausea",
 ];
 
+// Short non-answers we can catch without any LLM call — greetings,
+// confusion, filler. Kept intentionally small: real free-text answers
+// (duration, allergies, medications) are otherwise accepted as-is.
+const NON_ANSWERS = new Set([
+  "hi", "hello", "hey", "yo", "sup", "huh", "what", "?", "??", "idk",
+  "i dont know", "i don't know", "dunno", "who", "hm", "hmm", "test",
+]);
+
+function isNonAnswer(text) {
+  return NON_ANSWERS.has(text.trim().toLowerCase());
+}
+
+function looksLikeAge(text) {
+  return /\d{1,3}/.test(text);
+}
+
+const PREGNANCY_RESPONSES = new Set([
+  "yes", "y", "yeah", "yep", "yup",
+  "no", "n", "nope", "nah",
+  "n/a", "na", "not applicable",
+]);
+
+function looksLikePregnancyAnswer(text) {
+  return PREGNANCY_RESPONSES.has(text.trim().toLowerCase());
+}
+
 const chatEl = document.getElementById("chat");
 const form = document.getElementById("composer");
 const input = document.getElementById("input");
@@ -78,6 +104,10 @@ async function handleInput(text) {
   }
 
   if (step === "symptoms") {
+    if (!(await looksLikeSymptom(lower))) {
+      addMessage("ai", "Hmm, I don't think I caught what's bothering you — mind telling me a bit about your symptoms?");
+      return;
+    }
     answers.symptoms = lower;
     step = "followups";
     followUpIndex = 0;
@@ -88,6 +118,20 @@ async function handleInput(text) {
 
   if (step === "followups") {
     const current = FOLLOW_UPS[followUpIndex];
+
+    if (current.key === "age" && !looksLikeAge(lower)) {
+      addMessage("ai", "Just need a number there — how old are you?");
+      return;
+    }
+    if (current.key === "pregnancy" && !looksLikePregnancyAnswer(lower)) {
+      addMessage("ai", "Sorry, just to be safe — could you answer with yes, no, or n/a?");
+      return;
+    }
+    if (["duration", "allergies", "medications"].includes(current.key) && isNonAnswer(lower)) {
+      addMessage("ai", "Sorry, could you say a bit more so I get this right?");
+      return;
+    }
+
     answers[current.key] = lower;
     followUpIndex++;
     if (followUpIndex < FOLLOW_UPS.length) {
@@ -100,6 +144,24 @@ async function handleInput(text) {
 
   resetFlow();
   addMessage("ai", "What's going on today?");
+}
+
+// Deterministic keyword match is checked first (fast, always available).
+// If nothing matches, an obvious non-answer (greeting/gibberish) is
+// rejected outright without needing the LLM. Anything else is treated as
+// plausibly a symptom by default — Groq only gets to ADD a rejection
+// (catching things like "what's up" that dodge both checks), never widen
+// what counts as valid, and any Groq failure just falls back to accepting
+// the input so the kiosk keeps working offline.
+async function looksLikeSymptom(text) {
+  if (SYMPTOM_KEYWORDS.some((k) => text.includes(k))) return true;
+  if (isNonAnswer(text)) return false;
+
+  try {
+    return await groqIsSymptomDescription(text);
+  } catch (err) {
+    return true;
+  }
 }
 
 async function respondWarmly(userText) {

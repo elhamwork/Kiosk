@@ -84,6 +84,27 @@ async function groqClassifyProduct(summary, allowedIds) {
   return raw.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+// Asks whether a message actually describes a symptom/health concern, so
+// app.js can catch greetings, gibberish, or off-topic messages ("hi",
+// "huh", "what's up") instead of blindly walking them through the full
+// follow-up questionnaire. Purely additive/advisory — app.js still falls
+// back to the local keyword list if this fails or is unavailable.
+async function groqIsSymptomDescription(userText) {
+  const messages = [
+    {
+      role: "system",
+      content:
+        "Does the following message describe a symptom, health concern, or something a person " +
+        "might want an over-the-counter product for (e.g. pain, allergy, cough, upset stomach)? " +
+        "A greeting, small talk, or unclear/gibberish text is NOT a symptom description. " +
+        "Reply with ONLY the single word yes or no.",
+    },
+    { role: "user", content: userText },
+  ];
+  const raw = await groqChat(messages, { maxTokens: 5 });
+  return raw.trim().toLowerCase().startsWith("yes");
+}
+
 // Secondary, best-effort emergency classifier. This is purely additive —
 // it can only ever ADD a positive, never remove the deterministic keyword
 // check in app.js, which stays the real safety net.
