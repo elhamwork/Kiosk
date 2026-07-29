@@ -15,6 +15,12 @@
 
 * { box-sizing: border-box; }
 
+html {
+  height: 100%;
+  /* Prevent iOS Safari auto-zoom-on-focus when an input's font is under 16px. */
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -24,8 +30,13 @@ body {
   line-height: 1.55;
   display: flex;
   flex-direction: column;
+  /* 100vh ignores the mobile keyboard and can push the input off-screen as
+     you type, which looks like the text vanished. 100dvh (dynamic viewport
+     height) shrinks with the keyboard on browsers that support it. */
   height: 100vh;
+  height: 100dvh;
   -webkit-font-smoothing: antialiased;
+  overflow: hidden;
 }
 
 /* ---------- Topbar ---------- */
@@ -233,7 +244,9 @@ body {
   padding: 13px 16px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  font-size: 15px;
+  /* Must be >= 16px or iOS Safari auto-zooms the page on focus, which can
+     make typed text appear to jump/vanish during the zoom transition. */
+  font-size: 16px;
   outline: none;
   background: var(--hover);
 }
