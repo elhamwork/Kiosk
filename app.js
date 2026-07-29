@@ -37,6 +37,7 @@ async function looksLikeSymptom(text) {
   try {
     return await groqIsSymptomDescription(text);
   } catch (err) {
+    console.warn("[groq] symptom-check unavailable, defaulting to accept:", err.message);
     return true;
   }
 }
@@ -50,6 +51,7 @@ async function isEmergency(text) {
   try {
     return await groqIsEmergency(text);
   } catch (err) {
+    console.warn("[groq] emergency-check unavailable, relying on keyword gate only:", err.message);
     return false;
   }
 }
@@ -137,8 +139,9 @@ async function runRecommendation(symptomText) {
     // Strict whitelist check — every id must already be in our
     // safety-filtered candidate list, or it's discarded.
     rankedIds = ranked.filter((id) => candidateIds.includes(id));
+    console.info("[groq] ranking succeeded:", rankedIds);
   } catch (err) {
-    // Groq unavailable — fall through to local scoring below.
+    console.warn("[groq] ranking unavailable, falling back to local keyword scoring:", err.message);
   }
 
   if (rankedIds.length === 0) {

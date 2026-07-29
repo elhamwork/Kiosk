@@ -34,7 +34,10 @@ async function groqChat(messages, { maxTokens = 200, timeoutMs = 8000 } = {}) {
       signal: controller.signal,
     });
 
-    if (!res.ok) throw new Error(`Groq API error ${res.status}`);
+    if (!res.ok) {
+      const bodyText = await res.text().catch(() => "");
+      throw new Error(`Groq API error ${res.status}: ${bodyText.slice(0, 300)}`);
+    }
     const data = await res.json();
     const text = data.choices?.[0]?.message?.content;
     if (typeof text !== "string") throw new Error("Malformed Groq response");
